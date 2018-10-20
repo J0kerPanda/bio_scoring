@@ -27,7 +27,6 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
     val s2 = seq2.content
 
     val scoreMatrix = fillScorePathMatrix(createScoreMatrix(s1.length, s2.length), s1, s2)
-    scoreMatrix.foreach(res => println(res.map(_._1).mkString(" ")))
     val res = scoreMatrix.last.last
     val (adj1, adj2) = adjustSequences(s1, s2, res._2)
     ProcessingResult(res._1, adj1, adj2)
@@ -45,16 +44,17 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
    */
   @tailrec
   private def fillScorePathMatrix(matrix: ScorePathMatrix, s1: String, s2: String, i1: Int = 1, i2: Int = 1): ScorePathMatrix = {
-    if ((i1 == s1.length) && (i2 == s2.length)) {
-      matrix
-    } else  {
-      matrix.indices.drop(i1).foreach { i =>
-        matrix(i)(i2) = computeScorePath(matrix, s1, s2, i, i2) //column i2
-      }
-      matrix(0).indices.drop(i2 + 1).foreach { j =>
-        matrix(i1)(j) = computeScorePath(matrix, s1, s2, i1, j) //row i1
-      }
+    matrix.indices.drop(i1).foreach { i =>
+      matrix(i)(i2) = computeScorePath(matrix, s1, s2, i, i2) //column i2
+    }
+    matrix(0).indices.drop(i2 + 1).foreach { j =>
+      matrix(i1)(j) = computeScorePath(matrix, s1, s2, i1, j) //row i1
+    }
+
+    if ((i1 != s1.length) || (i2 != s2.length)) {
       fillScorePathMatrix(matrix, s1, s2, min(i1 + 1, s1.length), min(i2 + 1, s2.length))
+    } else {
+      matrix
     }
   }
 
@@ -64,7 +64,7 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
     val b1 = new StringBuilder()
     val b2 = new StringBuilder()
 
-    val shiftedPath = (s1.length, s2.length) :: path.drop(1)
+    val shiftedPath = (s1.length, s2.length) :: path.dropRight(1)
 
     shiftedPath.zip(path).foreach {
       case ((c1, c2), (o1, o2)) => (c1 - o1, c2 - o2) match {
@@ -98,7 +98,6 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
     )
       .maxBy(_._2)
 
-    println(i1, i2, score)
     // Path is added backwards
     (score, pathPoint :: matrix(pathPoint._1)(pathPoint._2)._2)
   }

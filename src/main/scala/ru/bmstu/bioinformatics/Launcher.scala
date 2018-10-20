@@ -14,17 +14,29 @@ object Launcher extends App {
     val matrixFile = new File("/home/antony/temprojects/bio_scoring/src/main/resources/protein.mtx")
 
     val m = WeightMatrix(Nucleotide)
+    val m2 = WeightMatrix(Protein)
 
     val processor = new SequenceProcessor(-5, m)
+    val processor2 = new SequenceProcessor(-5, m2)
 
-//    println(processor(
-//      Sequence("", "ATGAC"),
-//      Sequence("", "AGGA")
-//    ))
+    println(processor(
+      Sequence("", "ATTA"),
+      Sequence("", "ATTA")
+    ))
 
     println(processor(
       Sequence("", "ATTAAAT"),
       Sequence("", "AAAT")
     ))
+
+    println(processor(
+      Sequence("", "AGTAAA"),
+      Sequence("", "AGTA")
+    ))
+
+    println(processor2(
+      Sequence("", "MGHFTEEDKATITSLWGKVNVEDAGGETLGRLLVVYPWTQRFFDSFGNLSSASAIMGNPKVKAHGKKVLTSLGDAIKHLDDLKGTFAQLSELHCDKLHVDPENFKLLGNVLVTVLAIHFGKEFTPEVQASWQKMVTGVASALSSRYH"),
+      Sequence("", "MVHLTDAEKAAVNGLWGKVNPDDVGGEALGRLLVVYPWTQRYFDSFGDLSSASAIMGNPKVKAHGKKVINAFNDGLKHLDNLKGTFAHLSELHCDKLHVDPENFRLLGNMIVIVLGHHLGKEFTPCAQAAFQKVVAGVASALAHKYH"
+    )))
   }
 }
