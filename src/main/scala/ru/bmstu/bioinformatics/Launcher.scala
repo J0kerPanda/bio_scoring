@@ -14,6 +14,7 @@ object Launcher extends App {
     val matrixFile = new File("/home/antony/temprojects/bio_scoring/src/main/resources/matrix.txt")
 
     val m = WeightMatrix.fromFile(matrixFile)
-    println(m)
+    m.foreach(println)
+    println(m.size)
   }
 }

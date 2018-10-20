@@ -19,7 +19,6 @@ object WeightMatrix {
   def fromFile(file: File): KeyMatrix = {
     if (file.exists() && file.isFile) {
       val builder = mutable.HashMap[(Char, Char), Int]()
-      val anyName = '*'
       val names :: body = Source
         .fromFile(file)
         .getLines()
@@ -44,11 +43,21 @@ object WeightMatrix {
           .map(_.toInt)
           .zipWithIndex
           .foreach { case (weight, i) =>
-            val colName = nameArray(i)
-            if (colName == anyName) {
-              excludedSet.foreach(n => builder.update((rowName, n), weight))
-            } else {
-              builder.update((rowName, colName) , weight)
+            (rowName, nameArray(i)) match {
+              case ('*', '*') =>
+                for {
+                  n1 <- excludedSet
+                  n2 <- excludedSet
+                } { builder.update((n1, n2), weight) }
+
+              case ('*', colName) =>
+                excludedSet.foreach(n => builder.update((n, colName), weight))
+
+              case (_, '*') =>
+                excludedSet.foreach(n => builder.update((rowName, n), weight))
+
+              case (_, colName) =>
+                builder.update((rowName, colName) , weight)
             }
           }
       }
