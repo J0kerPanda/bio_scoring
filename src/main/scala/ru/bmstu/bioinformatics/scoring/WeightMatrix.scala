@@ -14,12 +14,10 @@ object WeightMatrix {
   private lazy val nucleotideMatrix = fromFile(getResourceFile("nucleotide.mtx"))
   private lazy val proteinMatrix = fromFile(getResourceFile("protein.mtx"))
 
-
   def apply(sequenceType: SequenceType): KeyMatrix = sequenceType match {
     case Nucleotide => nucleotideMatrix
     case Protein => proteinMatrix
   }
-
 
   /* Any lines starting with # are discarded
     The first line (excluding comments) should contain only space separated latin characters or
