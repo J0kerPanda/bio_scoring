@@ -21,7 +21,7 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
     val s1 = seq1.content
     val s2 = seq2.content
 
-    val res = process(s1, s2, 0, 0, createScoreMatrix(s1.length, s2.length))
+    val res = process(s1, s2, 1, 1, createScoreMatrix(s1.length, s2.length))
     res.foreach(e => println(e.mkString(" ")))
     ProcessingResult(0, "", "")
   }
@@ -37,7 +37,7 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
       scoreMatrix(0).indices.drop(i1 + 1).foreach { j =>
         scoreMatrix(i2)(j) = computeScore(scoreMatrix, s1, s2, j, i2) //row i2
       }
-      process(s1, s2, max(i1, s1.length), max(i2, s2.length), scoreMatrix)
+      process(s1, s2, max(i1 + 1, s1.length), max(i2 + 1, s2.length), scoreMatrix)
     } else {
       scoreMatrix
     }
@@ -47,7 +47,7 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
     Indices are greater than the current position in the corresponding string by 1
    */
   private def computeScore(scoreMatrix: ScoreMatrix, s1: String, s2: String, i1: Int, i2: Int): Int = {
-    val diffScore = weightMatrix((s1(i1 - 1), s2(i2 - 2)))
+    val diffScore = weightMatrix((s1(i1 - 1), s2(i2 - 1)))
     max(
       scoreMatrix(i2)(i1 - 1) + gapPenalty,
       scoreMatrix(i2 - 1)(i1) + gapPenalty,
@@ -58,7 +58,7 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
   private def createScoreMatrix(strSize1: Int, strSize2: Int): ScoreMatrix = {
     val res: ScoreMatrix = Array.ofDim(strSize2 + 1, strSize1 + 1)
     res.indices.foreach(i => res(i)(0) = i * gapPenalty) //first column
-    res(0).indices.drop(2).foreach(j => res(0)(j) = j * gapPenalty) //first row
+    res(0).indices.drop(1).foreach(j => res(0)(j) = j * gapPenalty) //first row
     res
   }
 
