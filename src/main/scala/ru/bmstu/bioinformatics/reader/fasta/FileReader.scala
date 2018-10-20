@@ -12,8 +12,8 @@ object FileReader {
     override def getMessage: String = s"Invalid sequence format in file [$file]"
   }
 
-  def readFirst(fileName: String, sequenceType: SequenceType): Option[Sequence] = {
-    val iterator = FileReader(fileName, sequenceType)
+  def readFirst(file: File, sequenceType: SequenceType): Option[Sequence] = {
+    val iterator = FileReader(file, sequenceType)
     if (iterator.hasNext) {
       Some(iterator.next())
     } else {
@@ -21,12 +21,11 @@ object FileReader {
     }
   }
 
-  def readAll(fileName: String, sequenceType: SequenceType): List[Sequence] = {
-    FileReader(fileName, sequenceType).toList
+  def readAll(file: File, sequenceType: SequenceType): List[Sequence] = {
+    FileReader(file, sequenceType).toList
   }
 
-  def apply(fileName: String, sequenceType: SequenceType): Iterator[Sequence] = {
-    val file = new File(fileName)
+  def apply(file: File, sequenceType: SequenceType): Iterator[Sequence] = {
     if (validateFile(file, sequenceType)) {
       groupedIterator(file)
         .map { case (name, content) =>
