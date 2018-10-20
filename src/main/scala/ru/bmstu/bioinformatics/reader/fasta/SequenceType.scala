@@ -2,5 +2,5 @@ package ru.bmstu.bioinformatics.reader.fasta
 
 sealed trait SequenceType
 
-case object Nucleotide
-case object Protein
+case object Nucleotide extends SequenceType
+case object Protein extends SequenceType
