@@ -73,7 +73,5 @@ object FileReader {
     }
   }
 
-  private def isCaptionLine(str: String): Boolean = {
-    str.startsWith(">")
-  }
+  private def isCaptionLine(str: String): Boolean = str.startsWith(">")
 }

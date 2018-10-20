@@ -11,10 +11,9 @@ object Launcher extends App {
   override def main(args: Array[String]): Unit = {
 
     val fastaFile = new File("/home/antony/temprojects/bio_scoring/src/main/resources/uniprot.fasta")
-    val matrixFile = new File("/home/antony/temprojects/bio_scoring/src/main/resources/matrix.txt")
+    val matrixFile = new File("/home/antony/temprojects/bio_scoring/src/main/resources/protein.mtx")
 
-    val m = WeightMatrix.fromFile(matrixFile)
-    m.foreach(println)
-    println(m.size)
+    val m = WeightMatrix(Protein)
+    println(m)
   }
 }
