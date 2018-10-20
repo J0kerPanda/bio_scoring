@@ -3,7 +3,12 @@ package ru.bmstu.bioinformatics.reader.fasta
 object SequenceAlphabet {
 
   private val nucleotideAlphabet = Set('A', 'C', 'G', 'T')
-  private val proteinAlphabet = Set('A', 'C', 'G', 'T', 'U', 'W', 'S', 'M', 'K', 'R', 'Y', 'B', 'D', 'H', 'V')
+  private val proteinAlphabet = Set(
+    'A', 'B', 'C', 'D', 'E', 'F',
+    'G', 'H', 'I', 'K', 'L', 'M',
+    'N', 'P', 'Q', 'R', 'S', 'T',
+    'U', 'V', 'W', 'Y', 'X', 'Z'
+  )
 
   def apply(sequenceType: SequenceType): Set[Char] = sequenceType match {
     case Nucleotide => nucleotideAlphabet

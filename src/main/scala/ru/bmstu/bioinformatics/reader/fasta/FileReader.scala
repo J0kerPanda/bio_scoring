@@ -38,13 +38,10 @@ object FileReader {
   def validateFile(file: File, sequenceType: SequenceType): Boolean = {
     if (file.exists() || file.isFile) {
       val alphabet = SequenceAlphabet(sequenceType)
-      !groupedIterator(file)
-        .exists {
-          case (name, content) if name.startsWith(">") && content.nonEmpty && content.forall(alphabet(_)) =>
-            false
-
-          case _ =>
-            true
+      groupedIterator(file)
+        .forall {
+          case (name, content) =>
+            isCaptionLine(name) && content.nonEmpty && content.forall(alphabet(_))
         }
     } else {
       throw new FileNotFoundException(s"Sequence file [${file.getAbsolutePath}] not found")
@@ -63,13 +60,19 @@ object FileReader {
         val caption = if (previousCaption != null) previousCaption else baseIterator.next()
         val builder = new StringBuilder()
         var currLine = ""
-        while (baseIterator.hasNext && !currLine.startsWith(">")) {
+        while (baseIterator.hasNext && !isCaptionLine(currLine)) {
           currLine = baseIterator.next()
-          builder.append(currLine)
+          if (!isCaptionLine(currLine)) {
+            builder.append(currLine)
+          }
         }
         previousCaption = currLine
         (caption, builder.toString())
       }
     }
+  }
+
+  private def isCaptionLine(str: String): Boolean = {
+    str.startsWith(">")
   }
 }
