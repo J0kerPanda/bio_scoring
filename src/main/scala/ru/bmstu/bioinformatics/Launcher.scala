@@ -2,7 +2,6 @@ package ru.bmstu.bioinformatics
 
 import java.io.File
 
-import ru.bmstu.bioinformatics.reader.fasta.FileReader
 import ru.bmstu.bioinformatics.scoring.{SequenceProcessor, WeightMatrix}
 import ru.bmstu.bioinformatics.sequence.{Nucleotide, Protein, Sequence}
 
@@ -34,9 +33,9 @@ object Launcher extends App {
       Sequence("", "AGTA")
     ))
 
-    println(processor2(
+    processor2(
       Sequence("", "MGHFTEEDKATITSLWGKVNVEDAGGETLGRLLVVYPWTQRFFDSFGNLSSASAIMGNPKVKAHGKKVLTSLGDAIKHLDDLKGTFAQLSELHCDKLHVDPENFKLLGNVLVTVLAIHFGKEFTPEVQASWQKMVTGVASALSSRYH"),
       Sequence("", "MVHLTDAEKAAVNGLWGKVNPDDVGGEALGRLLVVYPWTQRYFDSFGDLSSASAIMGNPKVKAHGKKVINAFNDGLKHLDNLKGTFAHLSELHCDKLHVDPENFRLLGNMIVIVLGHHLGKEFTPCAQAAFQKVVAGVASALAHKYH"
-    )))
+    )).print(50)
   }
 }

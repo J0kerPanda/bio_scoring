@@ -9,7 +9,20 @@ import scala.annotation.tailrec
 object SequenceProcessor {
   private val gapSymbol = '-'
 
-  case class ProcessingResult(score: Int, adjustedSeq1: String, adjustedSeq2: String)
+  case class ProcessingResult(score: Int, adjustedSeq1: String, adjustedSeq2: String) {
+
+    def print(groupSize: Int): Unit = {
+      println(s"Score: $score")
+      adjustedSeq1.grouped(groupSize)
+        .zip(adjustedSeq2.grouped(groupSize))
+        .zipWithIndex
+        .foreach { case ((s1, s2), i) =>
+          println(s"${i * groupSize + 1} - ${i * groupSize + s1.length}")
+          println(s1)
+          println(s2)
+        }
+    }
+  }
 }
 
 class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
@@ -52,7 +65,7 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
     }
 
     if ((i1 != s1.length) || (i2 != s2.length)) {
-      fillScorePathMatrix(matrix, s1, s2, min(i1 + 1, s1.length), min(i2 + 1, s2.length))
+      fillScorePathMatrix(matrix, s1, s2, math.min(i1 + 1, s1.length), math.min(i2 + 1, s2.length))
     } else {
       matrix
     }
@@ -101,8 +114,4 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
     // Path is added backwards
     (score, pathPoint :: matrix(pathPoint._1)(pathPoint._2)._2)
   }
-
-  private def max(i1: Int, i: Int*): Int = math.max(i1, i.max)
-
-  private def min(i1: Int, i: Int*): Int = math.min(i1, i.min)
 }
