@@ -25,9 +25,7 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
     val s2 = seq2.content
 
     val scoreMatrix = fillScoreMatrix(createScoreMatrix(s1.length, s2.length), s1, s2)
-    scoreMatrix.foreach(e => println(e.mkString(" ")))
     val (adj1, adj2) = adjustSequences(scoreMatrix, s1, s2)
-    println(adj1, adj2)
     ProcessingResult(scoreMatrix.last.last, adj1, adj2)
   }
 
@@ -52,7 +50,7 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
       scoreMatrix(0).indices.drop(i2 + 1).foreach { j =>
         scoreMatrix(i1)(j) = computeScore(scoreMatrix, s1, s2, i1, j) //row i1
       }
-      fillScoreMatrix(scoreMatrix, s1, s2, min(i2 + 1, s1.length), min(i1 + 1, s2.length))
+      fillScoreMatrix(scoreMatrix, s1, s2, min(i1 + 1, s1.length), min(i2 + 1, s2.length))
     }
   }
 
@@ -63,11 +61,11 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
     val b2 = new StringBuilder()
 
     @tailrec
-    def adjustRec(i1: Int, i2: Int): Unit = {
+    def adjustRec(i1: Int = 0, i2: Int = 0): Unit = {
       val (u1: Int, u2: Int, f) = List(
-        (i1 - 1, i2 - 1, () => { b1.append(s1(i1 - 1)); b2.append(s2(i2 - 1)) }),
-        (i1 - 1, i2, () => { b1.append(gapSymbol); b2.append(s2(i2 - 1)) }),
-        (i1, i2 - 1, () => { b1.append(s1(i1 - 1)); b2.append(gapSymbol) })
+        (i1 + 1, i2 + 1, () => { b1.append(s1(i1)); b2.append(s2(i2)) }),
+        (i1 + 1, i2, () => { b1.append(s1(i1)); b2.append(gapSymbol) }),
+        (i1, i2 + 1, () => { b1.append(gapSymbol); b2.append(s2(i2)) })
       )
         .map(ind => ind -> scoreMatrix(ind._1)(ind._2))
         .maxBy(_._2)
@@ -75,19 +73,27 @@ class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
 
       f()
       (u1, u2) match {
-        case (0, _) =>
-          (1 to u2).foreach(b2.append(gapSymbol))
+        //str 1 exhausted
+        case (_, _) if u1 == s1.length  =>
+          (s1.length until s2.length).foreach { i =>
+            b1.append(gapSymbol)
+            b2.append(s2(i))
+          }
 
-        case (_, 0) =>
-          (1 to u1).foreach(b1.append(gapSymbol))
+        //str 2 exhausted
+        case (_, _) if u2 == s2.length =>
+          (s2.length until s1.length).foreach { i =>
+            b1.append(s1(i))
+            b2.append(gapSymbol)
+          }
 
         case (_, _) =>
           adjustRec(u1, u2)
       }
     }
 
-    adjustRec(s1.length, s2.length)
-    (b1.reverse.toString(), b2.reverse.toString())
+    adjustRec()
+    (b1.toString(), b2.toString())
   }
 
   /*

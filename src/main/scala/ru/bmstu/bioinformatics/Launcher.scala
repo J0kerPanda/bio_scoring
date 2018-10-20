@@ -15,11 +15,16 @@ object Launcher extends App {
 
     val m = WeightMatrix(Nucleotide)
 
-    val processor = new SequenceProcessor(-10, m)
+    val processor = new SequenceProcessor(-5, m)
 
     processor(
       Sequence("", "ATGAC"),
       Sequence("", "AGGA")
     )
+
+//    processor(
+//      Sequence("", "ATTAAAT"),
+//      Sequence("", "AAAT")
+//    )
   }
 }
