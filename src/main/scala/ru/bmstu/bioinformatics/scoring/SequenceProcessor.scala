@@ -12,15 +12,14 @@ object SequenceProcessor {
   case class ProcessingResult(score: Int, adjustedSeq1: String, adjustedSeq2: String) {
 
     def print(groupSize: Int): Unit = {
-      println(adjustedSeq1, adjustedSeq2)
       println(s"Score: $score")
       adjustedSeq1.grouped(groupSize)
         .zip(adjustedSeq2.grouped(groupSize))
         .zipWithIndex
         .foreach { case ((s1, s2), i) =>
           println(s"${i * groupSize + 1} - ${i * groupSize + s1.length}")
-          println(s1)
-          println(s2)
+          println(s"s1: $s1")
+          println(s"s2: $s2")
         }
     }
   }
