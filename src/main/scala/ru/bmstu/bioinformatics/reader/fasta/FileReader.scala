@@ -27,7 +27,7 @@ object FileReader {
     val file = new File(fileName)
     if (validateFile(file, sequenceType)) {
       groupedIterator(file)
-        .map { case Seq(name, content) =>
+        .map { case (name, content) =>
           Sequence(name, content)
         }
     } else {
@@ -40,7 +40,7 @@ object FileReader {
       val alphabet = SequenceAlphabet(sequenceType)
       !groupedIterator(file)
         .exists {
-          case Seq(a, b) if a.startsWith(">") && !b.contains(!alphabet(_))=>
+          case (name, content) if name.startsWith(">") && content.nonEmpty && content.forall(alphabet(_)) =>
             false
 
           case _ =>
@@ -51,7 +51,25 @@ object FileReader {
     }
   }
 
-  private def groupedIterator(file: File): Iterator[String]#GroupedIterator[String] = {
-    Source.fromFile(file).getLines().grouped(2)
+  private def groupedIterator(file: File): Iterator[(String, String)] = {
+    val baseIterator = Source.fromFile(file).getLines()
+
+    new Iterator[(String, String)] {
+      private var previousCaption: String = _
+
+      override def hasNext: Boolean = baseIterator.hasNext
+
+      override def next(): (String, String) = {
+        val caption = if (previousCaption != null) previousCaption else baseIterator.next()
+        val builder = new StringBuilder()
+        var currLine = ""
+        while (baseIterator.hasNext && !currLine.startsWith(">")) {
+          currLine = baseIterator.next()
+          builder.append(currLine)
+        }
+        previousCaption = currLine
+        (caption, builder.toString())
+      }
+    }
   }
 }
