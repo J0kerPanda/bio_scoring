@@ -12,12 +12,12 @@ object FileReader {
     override def getMessage: String = s"Invalid sequence format in file [$file]"
   }
 
-  def readFirst(file: File, sequenceType: SequenceType): Option[Sequence] = {
+  def readFirst(file: File, sequenceType: SequenceType): Sequence = {
     val iterator = FileReader(file, sequenceType)
     if (iterator.hasNext) {
-      Some(iterator.next())
+      iterator.next()
     } else {
-      None
+      throw InvalidFileFormatException(file)
     }
   }
 

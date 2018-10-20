@@ -12,6 +12,7 @@ object SequenceProcessor {
   case class ProcessingResult(score: Int, adjustedSeq1: String, adjustedSeq2: String) {
 
     def print(groupSize: Int): Unit = {
+      println(adjustedSeq1, adjustedSeq2)
       println(s"Score: $score")
       adjustedSeq1.grouped(groupSize)
         .zip(adjustedSeq2.grouped(groupSize))
