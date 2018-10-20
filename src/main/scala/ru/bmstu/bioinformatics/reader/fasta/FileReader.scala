@@ -2,8 +2,6 @@ package ru.bmstu.bioinformatics.reader.fasta
 
 import java.io.{File, FileNotFoundException}
 
-import ru.bmstu.bioinformatics.reader.fasta.FileReader.InvalidFileFormatException
-
 import scala.io.Source
 
 object FileReader {
@@ -11,9 +9,19 @@ object FileReader {
   case class InvalidFileFormatException(file: File) extends Throwable {
     override def getMessage: String = s"Invalid sequence format in file [$file]"
   }
-}
 
-class FileReader {
+  def readFirst(fileName: String, sequenceType: SequenceType): Option[Sequence] = {
+    val iterator = FileReader(fileName, sequenceType)
+    if (iterator.hasNext) {
+      Some(iterator.next())
+    } else {
+      None
+    }
+  }
+
+  def readAll(fileName: String, sequenceType: SequenceType): List[Sequence] = {
+    FileReader(fileName, sequenceType).toList
+  }
 
   def apply(fileName: String, sequenceType: SequenceType): Iterator[Sequence] = {
     val file = new File(fileName)
