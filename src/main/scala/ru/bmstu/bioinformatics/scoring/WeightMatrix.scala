@@ -7,43 +7,58 @@ import scala.io.Source
 
 object WeightMatrix {
 
-  type KeyMatrix = Map[(String, String), Int]
-
-  private val proteinMatrix = Map(
-
-  )
+  type KeyMatrix = Map[(Char, Char), Int]
 
   /* Any lines starting with # are discarded
     The first line (excluding comments) should contain only space separated latin characters or
     an asterisk (any not-stated latin character)
-    The body of the matrix (should be square) consists of lines starting with a latin character or
+    The body of the (square) matrix should consist of lines starting with a latin character or
     an asterisk which is followed by a series of numbers corresponding to the size of the matrix
    */
-  ////todo error handling
+  //todo error handling
   def fromFile(file: File): KeyMatrix = {
     if (file.exists() && file.isFile) {
-      val builder = mutable.HashMap()
+      val builder = mutable.HashMap[(Char, Char), Int]()
+      val anyName = '*'
       val names :: body = Source
         .fromFile(file)
         .getLines()
         .map(_.trim)
-        .filter(_.startsWith("#"))
+        .filter(!_.startsWith("#"))
         .toList
 
-      val nameArray = names.toCharArray.filter(c => (c != '*') && (c != ' '))
+      val nameArray = splitBySpaces(names).map { n =>
+        assert(n.length == 1)
+        n.head
+      }
+      assert(nameArray.length == body.length)
       val excludedSet = ('A' to 'Z').toSet.diff(nameArray.toSet)
 
       body.foreach { line =>
-        val lineArray = line.split(" ")
+        val lineArray = splitBySpaces(line)
         assert(lineArray(0).length == 1)
-        val name = lineArray(0).head
-        val weightsInt = lineArray.drop(1).map(_.toInt)
+        val rowName = lineArray(0).head
+
+        lineArray
+          .drop(1)
+          .map(_.toInt)
+          .zipWithIndex
+          .foreach { case (weight, i) =>
+            val colName = nameArray(i)
+            if (colName == anyName) {
+              excludedSet.foreach(n => builder.update((rowName, n), weight))
+            } else {
+              builder.update((rowName, colName) , weight)
+            }
+          }
       }
 
-      Map()
+      builder.toMap
 
     } else {
       throw new FileNotFoundException(s"Matrix file not found [${file.getAbsolutePath}]")
     }
   }
+
+  private def splitBySpaces(str: String) = str.split("\\s+")
 }
