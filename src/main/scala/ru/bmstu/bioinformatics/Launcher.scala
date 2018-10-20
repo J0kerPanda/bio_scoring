@@ -17,14 +17,14 @@ object Launcher extends App {
 
     val processor = new SequenceProcessor(-5, m)
 
-    processor(
-      Sequence("", "ATGAC"),
-      Sequence("", "AGGA")
-    )
+//    println(processor(
+//      Sequence("", "ATGAC"),
+//      Sequence("", "AGGA")
+//    ))
 
-//    processor(
-//      Sequence("", "ATTAAAT"),
-//      Sequence("", "AAAT")
-//    )
+    println(processor(
+      Sequence("", "ATTAAAT"),
+      Sequence("", "AAAT")
+    ))
   }
 }
