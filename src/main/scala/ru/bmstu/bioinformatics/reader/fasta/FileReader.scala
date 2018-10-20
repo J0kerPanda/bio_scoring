@@ -2,6 +2,8 @@ package ru.bmstu.bioinformatics.reader.fasta
 
 import java.io.{File, FileNotFoundException}
 
+import ru.bmstu.bioinformatics.sequence.{Sequence, SequenceAlphabet, SequenceType}
+
 import scala.io.Source
 
 object FileReader {
@@ -63,7 +65,7 @@ object FileReader {
         while (baseIterator.hasNext && !isCaptionLine(currLine)) {
           currLine = baseIterator.next()
           if (!isCaptionLine(currLine)) {
-            builder.append(currLine)
+            builder.append(currLine.toUpperCase())
           }
         }
         previousCaption = currLine

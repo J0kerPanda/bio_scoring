@@ -1,4 +1,4 @@
-package ru.bmstu.bioinformatics.reader.fasta
+package ru.bmstu.bioinformatics.sequence
 
 sealed trait SequenceType
 

@@ -1,6 +1,7 @@
-package ru.bmstu.bioinformatics.scoring
+package ru.bmstu.bioinformatics
 
-import ru.bmstu.bioinformatics.reader.fasta.{FileReader, Protein}
+import ru.bmstu.bioinformatics.reader.fasta.FileReader
+import ru.bmstu.bioinformatics.sequence.Protein
 
 object Launcher extends App {
 
