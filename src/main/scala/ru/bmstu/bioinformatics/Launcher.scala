@@ -23,6 +23,7 @@ object Launcher extends App {
         res match {
           case Failure(e) =>
             println(e.getMessage)
+            e.printStackTrace()
 
           case Success(result) =>
             result.print(config.groupSize)

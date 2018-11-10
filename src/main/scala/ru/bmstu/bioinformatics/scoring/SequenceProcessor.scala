@@ -47,7 +47,6 @@ object SequenceProcessor {
   private type ScorePathCorner = MatrixCorner[(Int, List[PathPoint])]
 
   /** Representation of intermediate step of score computation process
-    * @param matching - corner of matrix responsible for matching
     * @param gapS1 - corner of matrix responsible for first sequence gaps
     * @param gapS2 - corner of matrix responsible for second sequence gaps
     */
@@ -83,14 +82,14 @@ class SequenceProcessor(gapPenalty: Int,
   def apply(seq1: Sequence, seq2: Sequence): ProcessingResult = {
     val s1 = seq1.content
     val s2 = seq2.content
-    val rows = s1.length
-    val cols = s2.length
+    val rows = s1.length + 1
+    val cols = s2.length + 1
 
     val initialTriplet = ProcessorTriplet(
       gapS1 =
-        MatrixCorner(i => gapPenalty + continuousGapPenalty * (i - 1), _ => limitValue, rows, cols),
+        MatrixCorner(i => gapPenalty + continuousGapPenalty * (i - 2), _ => limitValue, rows, cols),
       gapS2 =
-        MatrixCorner.applyHorizontalBias(_ => limitValue, j => gapPenalty + continuousGapPenalty * (j - 1),  rows, cols)
+        MatrixCorner.applyHorizontalBias(_ => limitValue, j => gapPenalty + continuousGapPenalty * (j - 2),  rows, cols)
     )
 
     val acc = MatrixCorner((0, List.empty[PathPoint]), rows, cols)
@@ -109,14 +108,12 @@ class SequenceProcessor(gapPenalty: Int,
     val (newTriplet, newAcc) = computeStep(currentTriplet, acc, seq1, seq2)
 
     if ((acc.vertSize == 1) || (acc.horSize == 1)) {
-      //todo fill last col, row
       newAcc(0)(0)
     } else {
       computeScorePath(newTriplet, newAcc, seq1, seq2)
     }
   }
 
-  //Step is done assuming > 1 cols and > 1 rows left
   private def computeStep(prevTriplet: ProcessorTriplet,
                           acc: ScorePathCorner,
                           seq1: String,
@@ -124,10 +121,10 @@ class SequenceProcessor(gapPenalty: Int,
 
     val ProcessorTriplet(prevS1G, prevS2G) = prevTriplet
 
-    val vertOffset = seq1.length - acc.vertSize
-    val horOffset = seq2.length - acc.horSize
+    val vertOffset = seq1.length - acc.vertSize + 1
+    val horOffset = seq2.length - acc.horSize + 1
 
-    val newVertSize = acc.vertSize - 1
+    val newVertSize = math.max(1, acc.vertSize - 1)
 
     val baseVertical = Array.fill(newVertSize)(limitValue)
     //Matching vertical, sequence 1 vertical gaps, sequence 2 vertical gaps, score path vertical
@@ -149,22 +146,24 @@ class SequenceProcessor(gapPenalty: Int,
     mtx.update(0, score)
     spv.update(0, score -> path)
 
+    println("here")
+
     //process each row
 
     for {
       i <- 1 until newVertSize
     } {
       val (mtx, score, path) = List(
-        (mv, acc(i)(0)._1 + weightMatrix((seq1(vertOffset + i), seq2(horOffset))), (1, 1) :: acc(0)(0)._2),
-        (s1gv, math.max(spv(i - 1)._1 + gapPenalty, s1gv(i - 1) + continuousGapPenalty), (1, 0) :: spv(i-1)._2),
-        (s2gv, math.max(acc(i + 1)(0)._1 + gapPenalty, prevS2G(i + 1)(0) + continuousGapPenalty), (0, 1) :: acc(0)(1)._2)
+        (mv, acc(i)(0)._1 + weightMatrix((seq1(vertOffset + i), seq2(horOffset))), (1, 1) :: acc(i)(0)._2),
+        (s1gv, math.max(spv(i - 1)._1 + gapPenalty, s1gv(i - 1) + continuousGapPenalty), (1, 0) :: spv(i - 1)._2),
+        (s2gv, math.max(acc(i + 1)(0)._1 + gapPenalty, prevS2G(i + 1)(0) + continuousGapPenalty), (0, 1) :: acc(i + 1)(0)._2)
       ).maxBy(_._2)
 
       mtx.update(i, score)
       spv.update(i, score -> path)
     }
 
-    val newHorSize = acc.horSize - 1
+    val newHorSize = math.max(1, acc.horSize - 1)
 
     val baseHorizontal = Array.fill(newVertSize)(limitValue)
     //Matching horizontal, sequence 1 horizontal gaps, sequence 2 horizontal gaps, score path horizontal
@@ -181,25 +180,30 @@ class SequenceProcessor(gapPenalty: Int,
     s2gh.update(0, s2gv(0))
     sph.update(0, spv(0))
 
+
     //process each column
 
     for {
       j <- 1 until newHorSize
     } {
       val (mtx, score, path) = List(
-        (mh, acc(0)(j)._1 + weightMatrix((seq1(vertOffset), seq2(horOffset + j))), (1, 1) :: acc(0)(0)._2),
-        (s1gh, math.max(acc(0)(j + 1)._1 + gapPenalty, prevS1G(0)(j + 1) + continuousGapPenalty), (1, 0) :: acc(0)(j-1)._2),
-        (s2gh, math.max(sph(j - 1)._1 + gapPenalty, s2gh(j - 1) + continuousGapPenalty), (0, 1) :: acc(0)(1)._2)
+        (mh, acc(0)(j)._1 + weightMatrix((seq1(vertOffset), seq2(horOffset + j))), (1, 1) :: acc(0)(j)._2),
+        (s1gh, math.max(acc(0)(j + 1)._1 + gapPenalty, prevS1G(0)(j + 1) + continuousGapPenalty), (1, 0) :: acc(0)(j + 1)._2),
+        (s2gh, math.max(sph(j - 1)._1 + gapPenalty, s2gh(j - 1) + continuousGapPenalty), (0, 1) :: sph(j - 1)._2)
       ).maxBy(_._2)
 
-      mtx.update(j - 1, score)
-      sph.update(j - 1, score -> path)
+      mtx.update(j, score)
+      sph.update(j, score -> path)
     }
 
+    val newTriplet = ProcessorTriplet(
+      gapS1 = MatrixCorner(s1gv.toVector, s1gh.toVector.drop(1)),
+      gapS2 = MatrixCorner(s2gv.toVector, s2gh.toVector.drop(1))
+    )
 
+    val newAcc = MatrixCorner(spv.toVector, sph.toVector.drop(1))
 
-
-    (???, ???)
+    (newTriplet, newAcc)
   }
 
   // Path is reversed
