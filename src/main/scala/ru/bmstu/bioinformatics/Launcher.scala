@@ -17,7 +17,7 @@ object Launcher extends App {
           s2 <- Try(FileReader.readFirst(config.seq2, config.sequenceType))
         } yield {
           val weightMatrix = WeightMatrix(config.sequenceType)
-          new SequenceProcessor(config.gapPenalty, weightMatrix)(s1, s2)
+          new SequenceProcessor(config.gapPenalty, weightMatrix, config.gapPenalty)(s1, s2)
         }
 
         res match {

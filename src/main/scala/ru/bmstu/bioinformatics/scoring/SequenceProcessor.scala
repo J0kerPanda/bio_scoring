@@ -8,13 +8,12 @@ import scala.annotation.tailrec
 
 object SequenceProcessor {
   private val gapSymbol = '-'
-  private val limitValue = Integer.MIN_VALUE
 
   /** Class, representing leftmost column and upmost row of the matrix
     * Corner element is present only in vertical vector
     */
-  private case class MatrixCorner[A](protected val vert: Vector[A],
-                                     protected val hor: Vector[A]) {
+  private case class MatrixCorner[A](vert: Vector[A],
+                                     hor: Vector[A]) {
 
     val vertSize: Int = vert.size
     val horSize: Int = hor.size + 1
@@ -78,6 +77,8 @@ class SequenceProcessor(gapPenalty: Int,
                         weightMatrix: KeyMatrix,
                         continuousGapPenalty: Int = 0) {
 
+  val limitValue: Int = Int.MinValue - 2 * gapPenalty + 1
+
   /*
     In corresponding table representation seq1 is considered to be placed vertically and
     seq2 is placed horizontally
@@ -88,16 +89,16 @@ class SequenceProcessor(gapPenalty: Int,
     val rows = s1.length + 1
     val cols = s2.length + 1
 
-    val initialTriplet = ProcessorPair(
+    val pair = ProcessorPair(
       gapS1 =
-        MatrixCorner(i => gapPenalty + continuousGapPenalty * (i - 2), _ => limitValue, rows, cols),
+        MatrixCorner(i => gapPenalty + continuousGapPenalty * (i - 1), _ => limitValue, rows, cols),
       gapS2 =
-        MatrixCorner.applyHorizontalBias(_ => limitValue, j => gapPenalty + continuousGapPenalty * (j - 2),  rows, cols)
+        MatrixCorner.applyHorizontalBias(_ => limitValue, j => gapPenalty + continuousGapPenalty * (j - 1),  rows, cols)
     )
 
-    val acc = MatrixCorner((0, List.empty[PathPoint]), rows, cols)
+    val acc: ScorePathCorner = MatrixCorner(pair.gapS1.vert.updated(0, 0).map((_, Nil)), pair.gapS2.hor.map((_, Nil)))
 
-    val (score, path) = computeScorePath(initialTriplet, acc, s1, s2)
+    val (score, path) = computeScorePath(pair, acc, s1, s2)
     val (adj1, adj2) = adjustSequences(s1, s2, path)
     ProcessingResult(score, adj1, adj2)
   }
@@ -110,7 +111,8 @@ class SequenceProcessor(gapPenalty: Int,
                                seq2: String): (Int, List[PathPoint]) = {
     val (newPair, newAcc) = computeStep(currentPair, acc, seq1, seq2)
 
-    newAcc.print()
+//    newAcc.print()
+//    println()
 
     if (newAcc.vertSize == 2) {
       val (_, _, sp) = computeHorizontal(newPair, newAcc, seq1, seq2)
@@ -133,6 +135,7 @@ class SequenceProcessor(gapPenalty: Int,
 
     val vertOffset = math.min(seq1.length - 1, seq1.length + 1 - acc.vertSize)
     val horOffset = math.min(seq2.length - 1, seq2.length - acc.horSize + 1)
+
     val newVertSize = math.max(1, acc.vertSize - 1)
 
     val baseVertical = Array.fill(newVertSize)(limitValue)
