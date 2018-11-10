@@ -37,11 +37,17 @@ object CliParser {
 
     opt[Int]('g', "gap")
       .optional()
-      .text("Gap penalty")
+      .text("Gap penalty (defaults to -10")
       .validate(p => if (p >= 0) failure("Penalty must be less than 0") else success)
       .action((p, c) => c.copy(gapPenalty = p))
 
-    opt[Int]("group")
+    opt[Int]('e', "extended_gap")
+      .optional()
+      .text("Extended gap penalty (defaults to gap)")
+      .validate(p => if (p >= 0) failure("Penalty must be less than 0") else success)
+      .action((p, c) => c.copy(sequenceGapPenalty = Some(p)))
+
+        opt[Int]("group")
       .optional()
       .text("Length of groups to cut sequences into")
       .action((g, c) => c.copy(groupSize = g))

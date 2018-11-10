@@ -9,4 +9,5 @@ case class CliConfig(seq1: File = new File(""),
                      sequenceType: SequenceType = Protein,
                      output: Option[File] = None,
                      groupSize: Int = 100,
-                     gapPenalty: Int = -10)
+                     gapPenalty: Int = -10,
+                     sequenceGapPenalty: Option[Int] = None)

@@ -77,8 +77,6 @@ class SequenceProcessor(gapPenalty: Int,
                         weightMatrix: KeyMatrix,
                         continuousGapPenalty: Int = 0) {
 
-  val limitValue: Int = Int.MinValue - 2 * gapPenalty + 1
-
   /*
     In corresponding table representation seq1 is considered to be placed vertically and
     seq2 is placed horizontally
@@ -88,6 +86,8 @@ class SequenceProcessor(gapPenalty: Int,
     val s2 = seq2.content
     val rows = s1.length + 1
     val cols = s2.length + 1
+
+    val limitValue: Int = Int.MinValue - 2 * gapPenalty - (s1.length + s2.length) * continuousGapPenalty + 1
 
     val pair = ProcessorPair(
       gapS1 =
@@ -101,7 +101,7 @@ class SequenceProcessor(gapPenalty: Int,
       pair.gapS2.hor.zipWithIndex.map { case (s, j) => (s, List.fill(j + 1)((0, 1))) }
     )
 
-    val (score, path) = computeScorePath(pair, acc, s1, s2)
+    val (score, path) = computeScorePath(pair, acc, s1, s2, limitValue)
     val (adj1, adj2) = adjustSequences(s1, s2, path)
     ProcessingResult(score, adj1, adj2)
   }
@@ -111,16 +111,17 @@ class SequenceProcessor(gapPenalty: Int,
   private def computeScorePath(currentPair: ProcessorPair,
                                acc: ScorePathCorner,
                                seq1: String,
-                               seq2: String): (Int, List[PathPoint]) = {
+                               seq2: String,
+                               limitValue: Int): (Int, List[PathPoint]) = {
     if (acc.vertSize == 2) {
-      val (_, _, sp) = computeHorizontal(currentPair, acc, seq1, seq2)
+      val (_, _, sp) = computeHorizontal(currentPair, acc, seq1, seq2, limitValue)
       sp.last
     } else if (acc.horSize == 2) {
-      val (_, _, sp) = computeVertical(currentPair, acc, seq1, seq2)
+      val (_, _, sp) = computeVertical(currentPair, acc, seq1, seq2, limitValue)
       sp.last
     } else {
-      val (newPair, newAcc) = computeStep(currentPair, acc, seq1, seq2)
-      computeScorePath(newPair, newAcc, seq1, seq2)
+      val (newPair, newAcc) = computeStep(currentPair, acc, seq1, seq2, limitValue)
+      computeScorePath(newPair, newAcc, seq1, seq2, limitValue)
     }
   }
 
@@ -128,7 +129,8 @@ class SequenceProcessor(gapPenalty: Int,
                                   prevPair: ProcessorPair,
                                   acc: ScorePathCorner,
                                   charS1: Char,
-                                  charS2: Char): (Array[Int], Array[Int], Array[Int], Array[(Int, List[PathPoint])]) = {
+                                  charS2: Char,
+                                  limitValue: Int): (Array[Int], Array[Int], Array[Int], Array[(Int, List[PathPoint])]) = {
 
     val ProcessorPair(prevS1G, prevS2G) = prevPair
     val base = Array.fill(size)(limitValue)
@@ -158,7 +160,8 @@ class SequenceProcessor(gapPenalty: Int,
   private def computeVertical(prevPair: ProcessorPair,
                               acc: ScorePathCorner,
                               seq1: String,
-                              seq2: String): (Vector[Int], Vector[Int], Vector[(Int, List[PathPoint])]) = {
+                              seq2: String,
+                              limitValue: Int): (Vector[Int], Vector[Int], Vector[(Int, List[PathPoint])]) = {
 
     val vertOffset = math.min(seq1.length - 1, seq1.length + 1 - acc.vertSize)
     val horOffset = math.min(seq2.length - 1, seq2.length - acc.horSize + 1)
@@ -166,7 +169,7 @@ class SequenceProcessor(gapPenalty: Int,
     val newVertSize = math.max(1, acc.vertSize - 1)
 
     //Matching vertical, sequence 1 vertical gaps, sequence 2 vertical gaps, score path vertical
-    val (mv, s1gv, s2gv, spv) = createInitialArrays(newVertSize, prevPair, acc, seq1(vertOffset), seq2(horOffset))
+    val (mv, s1gv, s2gv, spv) = createInitialArrays(newVertSize, prevPair, acc, seq1(vertOffset), seq2(horOffset), limitValue)
 
     //process each row
     for {
@@ -189,7 +192,8 @@ class SequenceProcessor(gapPenalty: Int,
   private def computeHorizontal(prevPair: ProcessorPair,
                                 acc: ScorePathCorner,
                                 seq1: String,
-                                seq2: String): (Vector[Int], Vector[Int], Vector[(Int, List[PathPoint])]) = {
+                                seq2: String,
+                                limitValue: Int): (Vector[Int], Vector[Int], Vector[(Int, List[PathPoint])]) = {
 
     val vertOffset = math.min(seq1.length - 1, seq1.length + 1 - acc.vertSize)
     val horOffset = math.min(seq2.length - 1, seq2.length - acc.horSize + 1)
@@ -197,7 +201,7 @@ class SequenceProcessor(gapPenalty: Int,
     val newHorSize = math.max(1, acc.horSize - 1)
 
     //Matching horizontal, sequence 1 horizontal gaps, sequence 2 horizontal gaps, score path horizontal
-    val (mh, s1gh, s2gh, sph) = createInitialArrays(newHorSize, prevPair, acc, seq1(vertOffset), seq2(horOffset))
+    val (mh, s1gh, s2gh, sph) = createInitialArrays(newHorSize, prevPair, acc, seq1(vertOffset), seq2(horOffset), limitValue)
     //process each column
 
     for {
@@ -219,10 +223,11 @@ class SequenceProcessor(gapPenalty: Int,
   private def computeStep(prevPair: ProcessorPair,
                           acc: ScorePathCorner,
                           seq1: String,
-                          seq2: String): (ProcessorPair, ScorePathCorner) = {
+                          seq2: String,
+                          limitValue: Int): (ProcessorPair, ScorePathCorner) = {
 
-    val (s1gv, s2gv, spv) = computeVertical(prevPair, acc, seq1, seq2)
-    val (s1gh, s2gh, sph) = computeHorizontal(prevPair, acc, seq1, seq2)
+    val (s1gv, s2gv, spv) = computeVertical(prevPair, acc, seq1, seq2, limitValue)
+    val (s1gh, s2gh, sph) = computeHorizontal(prevPair, acc, seq1, seq2, limitValue)
 
     val newTriplet = ProcessorPair(
       gapS1 = MatrixCorner(s1gv, s1gh.drop(1)),
@@ -242,8 +247,6 @@ class SequenceProcessor(gapPenalty: Int,
 
     var s1i = 0
     var s2i = 0
-
-    println(s1.length, s2.length, path.length)
 
     path.reverse.foreach {
       case (1, 1) =>
