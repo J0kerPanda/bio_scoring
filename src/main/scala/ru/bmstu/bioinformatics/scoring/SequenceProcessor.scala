@@ -96,7 +96,13 @@ class SequenceProcessor(gapPenalty: Int,
         MatrixCorner.applyHorizontalBias(_ => limitValue, j => gapPenalty + continuousGapPenalty * (j - 1),  rows, cols)
     )
 
-    val acc: ScorePathCorner = MatrixCorner(pair.gapS1.vert.updated(0, 0).map((_, Nil)), pair.gapS2.hor.map((_, Nil)))
+    val acc: ScorePathCorner = MatrixCorner(
+      pair.gapS1.vert.updated(0, 0).map((_, Nil)).zipWithIndex.map { case ((s, _), i) => (s, List.fill(i)((1, 0))) },
+      pair.gapS2.hor.map((_, Nil)).zipWithIndex.map { case ((s, _), j) => (s, List.fill(j + 1)((0, 1))) }
+    )
+
+    acc.print()
+    println
 
     val (score, path) = computeScorePath(pair, acc, s1, s2)
     val (adj1, adj2) = adjustSequences(s1, s2, path)
@@ -110,9 +116,6 @@ class SequenceProcessor(gapPenalty: Int,
                                seq1: String,
                                seq2: String): (Int, List[PathPoint]) = {
     val (newPair, newAcc) = computeStep(currentPair, acc, seq1, seq2)
-
-//    newAcc.print()
-//    println()
 
     if (newAcc.vertSize == 2) {
       val (_, _, sp) = computeHorizontal(newPair, newAcc, seq1, seq2)
