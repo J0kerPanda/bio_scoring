@@ -112,15 +112,14 @@ class SequenceProcessor(gapPenalty: Int,
                                acc: ScorePathCorner,
                                seq1: String,
                                seq2: String): (Int, List[PathPoint]) = {
-    val (newPair, newAcc) = computeStep(currentPair, acc, seq1, seq2)
-
-    if (newAcc.vertSize == 2) {
-      val (_, _, sp) = computeHorizontal(newPair, newAcc, seq1, seq2)
+    if (acc.vertSize == 2) {
+      val (_, _, sp) = computeHorizontal(currentPair, acc, seq1, seq2)
       sp.last
-    } else if (newAcc.horSize == 2) {
-      val (_, _, sp) = computeVertical(newPair, newAcc, seq1, seq2)
+    } else if (acc.horSize == 2) {
+      val (_, _, sp) = computeVertical(currentPair, acc, seq1, seq2)
       sp.last
     } else {
+      val (newPair, newAcc) = computeStep(currentPair, acc, seq1, seq2)
       computeScorePath(newPair, newAcc, seq1, seq2)
     }
   }
