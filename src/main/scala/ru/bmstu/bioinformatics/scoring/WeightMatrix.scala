@@ -25,7 +25,6 @@ object WeightMatrix {
     The body of the (square) matrix should consist of lines starting with a latin character or
     an asterisk which is followed by a series of numbers corresponding to the size of the matrix
    */
-  //todo error handling
   def fromFile(file: File): KeyMatrix = {
     if (file.exists() && file.isFile) {
       val builder = mutable.HashMap[(Char, Char), Int]()

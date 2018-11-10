@@ -25,7 +25,7 @@ object SequenceProcessor {
   }
 }
 
-class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix) {
+class SequenceProcessor(gapPenalty: Int, weightMatrix: KeyMatrix, continuousGapPenalty: Int) {
 
   private type PathPoint = (Int, Int)
   private type ScorePathEntry = (Int, List[PathPoint])
