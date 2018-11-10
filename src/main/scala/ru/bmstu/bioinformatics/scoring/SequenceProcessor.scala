@@ -20,6 +20,11 @@ object SequenceProcessor {
     val horSize: Int = hor.size + 1
 
     def apply(i: Int)(j: Int): A = if (j == 0) vert(i) else hor(j-1)
+
+    def print(): Unit = {
+      println((vert(0) +: hor).mkString(","))
+      vert.drop(1).foreach(println)
+    }
   }
 
   private object MatrixCorner {
@@ -99,22 +104,22 @@ class SequenceProcessor(gapPenalty: Int,
 
   //Path is reversed
   @tailrec
-  private def computeScorePath(currentTriplet: ProcessorPair,
+  private def computeScorePath(currentPair: ProcessorPair,
                                acc: ScorePathCorner,
                                seq1: String,
                                seq2: String): (Int, List[PathPoint]) = {
-    val (newTriplet, newAcc) = computeStep(currentTriplet, acc, seq1, seq2)
+    val (newPair, newAcc) = computeStep(currentPair, acc, seq1, seq2)
 
-    if (acc.vertSize == 2) {
+    newAcc.print()
 
-    } else if (acc.horSize == 2) {
-
-    }
-
-    if ((acc.vertSize == 2) || (acc.horSize == 2)) {
-      newAcc(0)(0)
+    if (newAcc.vertSize == 2) {
+      val (_, _, sp) = computeHorizontal(newPair, newAcc, seq1, seq2)
+      sp.last
+    } else if (newAcc.horSize == 2) {
+      val (_, _, sp) = computeVertical(newPair, newAcc, seq1, seq2)
+      sp.last
     } else {
-      computeScorePath(newTriplet, newAcc, seq1, seq2)
+      computeScorePath(newPair, newAcc, seq1, seq2)
     }
   }
 
@@ -126,8 +131,8 @@ class SequenceProcessor(gapPenalty: Int,
 
     val ProcessorPair(prevS1G, prevS2G) = prevPair
 
-    val vertOffset = seq1.length + 1 - acc.vertSize
-    val horOffset = seq2.length - acc.horSize + 1
+    val vertOffset = math.min(seq1.length - 1, seq1.length + 1 - acc.vertSize)
+    val horOffset = math.min(seq2.length - 1, seq2.length - acc.horSize + 1)
     val newVertSize = math.max(1, acc.vertSize - 1)
 
     val baseVertical = Array.fill(newVertSize)(limitValue)
@@ -175,8 +180,8 @@ class SequenceProcessor(gapPenalty: Int,
 
     val ProcessorPair(prevS1G, prevS2G) = prevPair
 
-    val vertOffset = seq1.length + 1 - acc.vertSize
-    val horOffset = seq2.length - acc.horSize + 1
+    val vertOffset = math.min(seq1.length - 1, seq1.length + 1 - acc.vertSize)
+    val horOffset = math.min(seq2.length - 1, seq2.length - acc.horSize + 1)
 
     val newHorSize = math.max(1, acc.horSize - 1)
 
@@ -244,8 +249,6 @@ class SequenceProcessor(gapPenalty: Int,
 
     var s1i = 0
     var s2i = 0
-
-    println(path)
 
     path.reverse.foreach {
       case (1, 1) =>
