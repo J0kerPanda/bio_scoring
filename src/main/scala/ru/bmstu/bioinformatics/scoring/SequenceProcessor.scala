@@ -51,8 +51,7 @@ object SequenceProcessor {
     * @param gapS1 - corner of matrix responsible for first sequence gaps
     * @param gapS2 - corner of matrix responsible for second sequence gaps
     */
-  private case class ProcessorTriplet(matching: MatrixCorner[Int],
-                                      gapS1: MatrixCorner[Int],
+  private case class ProcessorTriplet(gapS1: MatrixCorner[Int],
                                       gapS2: MatrixCorner[Int])
 
   case class ProcessingResult(score: Int, adjustedSeq1: String, adjustedSeq2: String) {
@@ -88,7 +87,6 @@ class SequenceProcessor(gapPenalty: Int,
     val cols = s2.length
 
     val initialTriplet = ProcessorTriplet(
-      matching = MatrixCorner(limitValue, rows, cols),
       gapS1 =
         MatrixCorner(i => gapPenalty + continuousGapPenalty * (i - 1), _ => limitValue, rows, cols),
       gapS2 =
@@ -110,38 +108,95 @@ class SequenceProcessor(gapPenalty: Int,
                                seq2: String): (Int, List[PathPoint]) = {
     val (newTriplet, newAcc) = computeStep(currentTriplet, acc, seq1, seq2)
 
-    if ((acc.vertSize == 1) && (acc.horSize == 1)) {
+    if ((acc.vertSize == 1) || (acc.horSize == 1)) {
+      //todo fill last col, row
       newAcc(0)(0)
     } else {
       computeScorePath(newTriplet, newAcc, seq1, seq2)
     }
   }
 
+  //Step is done assuming > 1 cols and > 1 rows left
   private def computeStep(prevTriplet: ProcessorTriplet,
                           acc: ScorePathCorner,
                           seq1: String,
                           seq2: String): (ProcessorTriplet, ScorePathCorner) = {
 
-    val s1Char = seq1(seq1.length - acc.vertSize)
-    val s2Char = seq2(seq2.length - acc.horSize)
+    val ProcessorTriplet(prevS1G, prevS2G) = prevTriplet
+
+    val vertOffset = seq1.length - acc.vertSize
+    val horOffset = seq2.length - acc.horSize
+
+    val newVertSize = acc.vertSize - 1
+
+    val baseVertical = Array.fill(newVertSize)(limitValue)
+    //Matching vertical, sequence 1 vertical gaps, sequence 2 vertical gaps, score path vertical
+    val (mv, s1gv, s2gv, spv) = (
+      baseVertical.clone(),
+      baseVertical.clone(),
+      baseVertical.clone(),
+      Array.ofDim[(Int, List[PathPoint])](acc.vertSize)
+    )
+
+    //Diagonal element score
+    //matrix index, score, path
+    val (mtx, score, path) = List(
+      (mv, acc(0)(0)._1 + weightMatrix((seq1(vertOffset), seq2(horOffset))), (1, 1) :: acc(0)(0)._2),
+      (s1gv, math.max(acc(0)(1)._1 + gapPenalty, prevS1G(0)(1) + continuousGapPenalty), (1, 0) :: acc(1)(0)._2),
+      (s2gv, math.max(acc(1)(0)._1 + gapPenalty, prevS2G(1)(0) + continuousGapPenalty), (0, 1) :: acc(0)(1)._2)
+    ).maxBy(_._2)
+
+    mtx.update(0, score)
+    spv.update(0, score -> path)
 
     //process each row
-    val baseVertical = Array.fill(math.max(1, acc.vertSize - 1))(limitValue)
-    //Matching vertical, sequence 1 vertical gaps, sequence 2 vertical gaps, score path vertical
-    //s2gv nee
-    val (mv, s1gv, s2gv, spv) = (baseVertical.clone(), baseVertical.clone(), baseVertical.clone(), baseVertical.clone())
-
-    def compute
 
     for {
-      i <- 1 to acc.vertSize
+      i <- 1 until newVertSize
     } {
-      val prevScore = acc(i)(0)
-      val mScore = acc(i - 1)(0) ._1 + weightMatrix((s1Char, s2Char))
-      val gapS1Score = acc(i - 1)(0) + if (prevTriplet.gapS1(i - 1)(0) != limitValue) continuousGapPenalty else gapPenalty
+      val (mtx, score, path) = List(
+        (mv, acc(i)(0)._1 + weightMatrix((seq1(vertOffset + i), seq2(horOffset))), (1, 1) :: acc(0)(0)._2),
+        (s1gv, math.max(spv(i - 1)._1 + gapPenalty, s1gv(i - 1) + continuousGapPenalty), (1, 0) :: spv(i-1)._2),
+        (s2gv, math.max(acc(i + 1)(0)._1 + gapPenalty, prevS2G(i + 1)(0) + continuousGapPenalty), (0, 1) :: acc(0)(1)._2)
+      ).maxBy(_._2)
+
+      mtx.update(i, score)
+      spv.update(i, score -> path)
     }
 
+    val newHorSize = acc.horSize - 1
+
+    val baseHorizontal = Array.fill(newVertSize)(limitValue)
+    //Matching horizontal, sequence 1 horizontal gaps, sequence 2 horizontal gaps, score path horizontal
+    val (mh, s1gh, s2gh, sph) = (
+      baseHorizontal.clone(),
+      baseHorizontal.clone(),
+      baseHorizontal.clone(),
+      Array.ofDim[(Int, List[PathPoint])](acc.vertSize)
+    )
+
+    //Set first element the same as in the vertical case
+    mh.update(0, mv(0))
+    s1gh.update(0, s1gv(0))
+    s2gh.update(0, s2gv(0))
+    sph.update(0, spv(0))
+
     //process each column
+
+    for {
+      j <- 1 until newHorSize
+    } {
+      val (mtx, score, path) = List(
+        (mh, acc(0)(j)._1 + weightMatrix((seq1(vertOffset), seq2(horOffset + j))), (1, 1) :: acc(0)(0)._2),
+        (s1gh, math.max(acc(0)(j + 1)._1 + gapPenalty, prevS1G(0)(j + 1) + continuousGapPenalty), (1, 0) :: acc(0)(j-1)._2),
+        (s2gh, math.max(sph(j - 1)._1 + gapPenalty, s2gh(j - 1) + continuousGapPenalty), (0, 1) :: acc(0)(1)._2)
+      ).maxBy(_._2)
+
+      mtx.update(j - 1, score)
+      sph.update(j - 1, score -> path)
+    }
+
+
 
 
     (???, ???)
