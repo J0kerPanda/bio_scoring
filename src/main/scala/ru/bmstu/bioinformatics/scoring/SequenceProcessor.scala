@@ -118,7 +118,8 @@ class SequenceProcessor(gapPenalty: Int,
     }
   }
 
-  private def computeVErtical(prevPair: ProcessorPair,
+  //Computes new column (all elements)
+  private def computeVertical(prevPair: ProcessorPair,
                               acc: ScorePathCorner,
                               seq1: String,
                               seq2: String): (Vector[Int], Vector[Int], Vector[(Int, List[PathPoint])]) = {
@@ -166,6 +167,7 @@ class SequenceProcessor(gapPenalty: Int,
     (s1gv.toVector, s2gv.toVector, spv.toVector)
   }
 
+  //Computes new row (all elements)
   private def computeHorizontal(prevPair: ProcessorPair,
                                 acc: ScorePathCorner,
                                 seq1: String,
@@ -221,86 +223,15 @@ class SequenceProcessor(gapPenalty: Int,
                           seq1: String,
                           seq2: String): (ProcessorPair, ScorePathCorner) = {
 
-    val ProcessorPair(prevS1G, prevS2G) = prevPair
-
-    val vertOffset = seq1.length + 1 - acc.vertSize
-    val horOffset = seq2.length - acc.horSize + 1
-
-    val newVertSize = math.max(1, acc.vertSize - 1)
-
-    val baseVertical = Array.fill(newVertSize)(limitValue)
-    //Matching vertical, sequence 1 vertical gaps, sequence 2 vertical gaps, score path vertical
-    val (mv, s1gv, s2gv, spv) = (
-      baseVertical.clone(),
-      baseVertical.clone(),
-      baseVertical.clone(),
-      Array.ofDim[(Int, List[PathPoint])](newVertSize)
-    )
-
-    //Diagonal element score
-    //matrix index, score, path
-    val (mtx, score, path) = List(
-      (mv, acc(0)(0)._1 + weightMatrix((seq1(vertOffset), seq2(horOffset))), (1, 1) :: acc(0)(0)._2),
-      (s1gv, math.max(acc(0)(1)._1 + gapPenalty, prevS1G(0)(1) + continuousGapPenalty), (1, 0) :: acc(1)(0)._2),
-      (s2gv, math.max(acc(1)(0)._1 + gapPenalty, prevS2G(1)(0) + continuousGapPenalty), (0, 1) :: acc(0)(1)._2)
-    ).maxBy(_._2)
-
-    mtx.update(0, score)
-    spv.update(0, score -> path)
-
-    //process each row
-
-    for {
-      i <- 1 until newVertSize
-    } {
-      val (mtx, score, path) = List(
-        (mv, acc(i)(0)._1 + weightMatrix((seq1(vertOffset + i), seq2(horOffset))), (1, 1) :: acc(i)(0)._2),
-        (s1gv, math.max(spv(i - 1)._1 + gapPenalty, s1gv(i - 1) + continuousGapPenalty), (1, 0) :: spv(i - 1)._2),
-        (s2gv, math.max(acc(i + 1)(0)._1 + gapPenalty, prevS2G(i + 1)(0) + continuousGapPenalty), (0, 1) :: acc(i + 1)(0)._2)
-      ).maxBy(_._2)
-
-      mtx.update(i, score)
-      spv.update(i, score -> path)
-    }
-
-    val newHorSize = math.max(1, acc.horSize - 1)
-
-    val baseHorizontal = Array.fill(newHorSize)(limitValue)
-    //Matching horizontal, sequence 1 horizontal gaps, sequence 2 horizontal gaps, score path horizontal
-    val (mh, s1gh, s2gh, sph) = (
-      baseHorizontal.clone(),
-      baseHorizontal.clone(),
-      baseHorizontal.clone(),
-      Array.ofDim[(Int, List[PathPoint])](newHorSize)
-    )
-
-    //Set first element the same as in the vertical case
-    mh.update(0, mv(0))
-    s1gh.update(0, s1gv(0))
-    s2gh.update(0, s2gv(0))
-    sph.update(0, spv(0))
-
-    //process each column
-
-    for {
-      j <- 1 until newHorSize
-    } {
-      val (mtx, score, path) = List(
-        (mh, acc(0)(j)._1 + weightMatrix((seq1(vertOffset), seq2(horOffset + j))), (1, 1) :: acc(0)(j)._2),
-        (s1gh, math.max(acc(0)(j + 1)._1 + gapPenalty, prevS1G(0)(j + 1) + continuousGapPenalty), (1, 0) :: acc(0)(j + 1)._2),
-        (s2gh, math.max(sph(j - 1)._1 + gapPenalty, s2gh(j - 1) + continuousGapPenalty), (0, 1) :: sph(j - 1)._2)
-      ).maxBy(_._2)
-
-      mtx.update(j, score)
-      sph.update(j, score -> path)
-    }
+    val (s1gv, s2gv, spv) = computeVertical(prevPair, acc, seq1, seq2)
+    val (s1gh, s2gh, sph) = computeHorizontal(prevPair, acc, seq1, seq2)
 
     val newTriplet = ProcessorPair(
-      gapS1 = MatrixCorner(s1gv.toVector, s1gh.toVector.drop(1)),
-      gapS2 = MatrixCorner(s2gv.toVector, s2gh.toVector.drop(1))
+      gapS1 = MatrixCorner(s1gv, s1gh.drop(1)),
+      gapS2 = MatrixCorner(s2gv, s2gh.drop(1))
     )
 
-    val newAcc = MatrixCorner(spv.toVector, sph.toVector.drop(1))
+    val newAcc = MatrixCorner(spv, sph.drop(1))
 
     (newTriplet, newAcc)
   }
@@ -313,6 +244,8 @@ class SequenceProcessor(gapPenalty: Int,
 
     var s1i = 0
     var s2i = 0
+
+    println(path)
 
     path.reverse.foreach {
       case (1, 1) =>
