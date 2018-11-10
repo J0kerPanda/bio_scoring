@@ -97,12 +97,9 @@ class SequenceProcessor(gapPenalty: Int,
     )
 
     val acc: ScorePathCorner = MatrixCorner(
-      pair.gapS1.vert.updated(0, 0).map((_, Nil)).zipWithIndex.map { case ((s, _), i) => (s, List.fill(i)((1, 0))) },
-      pair.gapS2.hor.map((_, Nil)).zipWithIndex.map { case ((s, _), j) => (s, List.fill(j + 1)((0, 1))) }
+      pair.gapS1.vert.updated(0, 0).zipWithIndex.map { case (s, i) => (s, List.fill(i)((1, 0))) },
+      pair.gapS2.hor.zipWithIndex.map { case (s, j) => (s, List.fill(j + 1)((0, 1))) }
     )
-
-    acc.print()
-    println
 
     val (score, path) = computeScorePath(pair, acc, s1, s2)
     val (adj1, adj2) = adjustSequences(s1, s2, path)
@@ -128,38 +125,49 @@ class SequenceProcessor(gapPenalty: Int,
     }
   }
 
+  private def createInitialArrays(size: Int,
+                                  prevPair: ProcessorPair,
+                                  acc: ScorePathCorner,
+                                  charS1: Char,
+                                  charS2: Char): (Array[Int], Array[Int], Array[Int], Array[(Int, List[PathPoint])]) = {
+
+    val ProcessorPair(prevS1G, prevS2G) = prevPair
+    val base = Array.fill(size)(limitValue)
+    //Matching, sequence 1 gaps, sequence 2 gaps, score path
+    val (m, s1g, s2g, sp) = (
+      base.clone(),
+      base.clone(),
+      base.clone(),
+      Array.ofDim[(Int, List[PathPoint])](size)
+    )
+
+    //Diagonal element score
+    //matrix index, score, path
+    val (mtx, score, path) = List(
+      (m, acc(0)(0)._1 + weightMatrix((charS1, charS2)), (1, 1) :: acc(0)(0)._2),
+      (s1g, math.max(acc(0)(1)._1 + gapPenalty, prevS1G(0)(1) + continuousGapPenalty), (1, 0) :: acc(1)(0)._2),
+      (s2g, math.max(acc(1)(0)._1 + gapPenalty, prevS2G(1)(0) + continuousGapPenalty), (0, 1) :: acc(0)(1)._2)
+    ).maxBy(_._2)
+
+    mtx.update(0, score)
+    sp.update(0, score -> path)
+
+    (m, s1g, s2g, sp)
+  }
+
   //Computes new column (all elements)
   private def computeVertical(prevPair: ProcessorPair,
                               acc: ScorePathCorner,
                               seq1: String,
                               seq2: String): (Vector[Int], Vector[Int], Vector[(Int, List[PathPoint])]) = {
 
-    val ProcessorPair(prevS1G, prevS2G) = prevPair
-
     val vertOffset = math.min(seq1.length - 1, seq1.length + 1 - acc.vertSize)
     val horOffset = math.min(seq2.length - 1, seq2.length - acc.horSize + 1)
 
     val newVertSize = math.max(1, acc.vertSize - 1)
 
-    val baseVertical = Array.fill(newVertSize)(limitValue)
     //Matching vertical, sequence 1 vertical gaps, sequence 2 vertical gaps, score path vertical
-    val (mv, s1gv, s2gv, spv) = (
-      baseVertical.clone(),
-      baseVertical.clone(),
-      baseVertical.clone(),
-      Array.ofDim[(Int, List[PathPoint])](newVertSize)
-    )
-
-    //Diagonal element score
-    //matrix index, score, path
-    val (mtx, score, path) = List(
-      (mv, acc(0)(0)._1 + weightMatrix((seq1(vertOffset), seq2(horOffset))), (1, 1) :: acc(0)(0)._2),
-      (s1gv, math.max(acc(0)(1)._1 + gapPenalty, prevS1G(0)(1) + continuousGapPenalty), (1, 0) :: acc(1)(0)._2),
-      (s2gv, math.max(acc(1)(0)._1 + gapPenalty, prevS2G(1)(0) + continuousGapPenalty), (0, 1) :: acc(0)(1)._2)
-    ).maxBy(_._2)
-
-    mtx.update(0, score)
-    spv.update(0, score -> path)
+    val (mv, s1gv, s2gv, spv) = createInitialArrays(newVertSize, prevPair, acc, seq1(vertOffset), seq2(horOffset))
 
     //process each row
     for {
@@ -168,7 +176,7 @@ class SequenceProcessor(gapPenalty: Int,
       val (mtx, score, path) = List(
         (mv, acc(i)(0)._1 + weightMatrix((seq1(vertOffset + i), seq2(horOffset))), (1, 1) :: acc(i)(0)._2),
         (s1gv, math.max(spv(i - 1)._1 + gapPenalty, s1gv(i - 1) + continuousGapPenalty), (1, 0) :: spv(i - 1)._2),
-        (s2gv, math.max(acc(i + 1)(0)._1 + gapPenalty, prevS2G(i + 1)(0) + continuousGapPenalty), (0, 1) :: acc(i + 1)(0)._2)
+        (s2gv, math.max(acc(i + 1)(0)._1 + gapPenalty, prevPair.gapS2(i + 1)(0) + continuousGapPenalty), (0, 1) :: acc(i + 1)(0)._2)
       ).maxBy(_._2)
 
       mtx.update(i, score)
@@ -184,33 +192,13 @@ class SequenceProcessor(gapPenalty: Int,
                                 seq1: String,
                                 seq2: String): (Vector[Int], Vector[Int], Vector[(Int, List[PathPoint])]) = {
 
-    val ProcessorPair(prevS1G, prevS2G) = prevPair
-
     val vertOffset = math.min(seq1.length - 1, seq1.length + 1 - acc.vertSize)
     val horOffset = math.min(seq2.length - 1, seq2.length - acc.horSize + 1)
 
     val newHorSize = math.max(1, acc.horSize - 1)
 
-    val baseHorizontal = Array.fill(newHorSize)(limitValue)
     //Matching horizontal, sequence 1 horizontal gaps, sequence 2 horizontal gaps, score path horizontal
-    val (mh, s1gh, s2gh, sph) = (
-      baseHorizontal.clone(),
-      baseHorizontal.clone(),
-      baseHorizontal.clone(),
-      Array.ofDim[(Int, List[PathPoint])](newHorSize)
-    )
-
-    //Diagonal element score
-    //matrix index, score, path
-    val (mtx, score, path) = List(
-      (mh, acc(0)(0)._1 + weightMatrix((seq1(vertOffset), seq2(horOffset))), (1, 1) :: acc(0)(0)._2),
-      (s1gh, math.max(acc(0)(1)._1 + gapPenalty, prevS1G(0)(1) + continuousGapPenalty), (1, 0) :: acc(1)(0)._2),
-      (s2gh, math.max(acc(1)(0)._1 + gapPenalty, prevS2G(1)(0) + continuousGapPenalty), (0, 1) :: acc(0)(1)._2)
-    ).maxBy(_._2)
-
-    mtx.update(0, score)
-    sph.update(0, score -> path)
-
+    val (mh, s1gh, s2gh, sph) = createInitialArrays(newHorSize, prevPair, acc, seq1(vertOffset), seq2(horOffset))
     //process each column
 
     for {
@@ -218,7 +206,7 @@ class SequenceProcessor(gapPenalty: Int,
     } {
       val (mtx, score, path) = List(
         (mh, acc(0)(j)._1 + weightMatrix((seq1(vertOffset), seq2(horOffset + j))), (1, 1) :: acc(0)(j)._2),
-        (s1gh, math.max(acc(0)(j + 1)._1 + gapPenalty, prevS1G(0)(j + 1) + continuousGapPenalty), (1, 0) :: acc(0)(j + 1)._2),
+        (s1gh, math.max(acc(0)(j + 1)._1 + gapPenalty, prevPair.gapS1(0)(j + 1) + continuousGapPenalty), (1, 0) :: acc(0)(j + 1)._2),
         (s2gh, math.max(sph(j - 1)._1 + gapPenalty, s2gh(j - 1) + continuousGapPenalty), (0, 1) :: sph(j - 1)._2)
       ).maxBy(_._2)
 
@@ -255,6 +243,8 @@ class SequenceProcessor(gapPenalty: Int,
 
     var s1i = 0
     var s2i = 0
+
+    println(s1.length, s2.length, path.length)
 
     path.reverse.foreach {
       case (1, 1) =>
