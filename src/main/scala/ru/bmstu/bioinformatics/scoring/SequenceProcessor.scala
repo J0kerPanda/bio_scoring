@@ -9,6 +9,24 @@ import scala.annotation.tailrec
 object SequenceProcessor {
   private val gapSymbol = '-'
 
+  /** Class, representing leftmost column and upmost row of the matrix
+    * Corner element is present only in down vector
+    */
+  private case class MatrixCorner(col: Vector[Int], row: Vector[Int])
+
+  object MatrixCorner {
+
+    def apply(fill: Int, matrixSize: Int): MatrixCorner =
+      MatrixCorner(Vector.fill(matrixSize)(fill), Vector.fill(matrixSize - 1)(fill))
+  }
+
+  /** Representation of intermediate step of score computation process
+    * @param matching - corner of matrix responsible for matching
+    * @param gapS1 - corner of matrix responsible for first sequence gaps
+    * @param gapS2 - corner of matrix responsible for second sequence gaps
+    */
+  private case class ProcessorTriplet(matching: MatrixCorner, gapS1: MatrixCorner, gapS2: MatrixCorner)
+
   case class ProcessingResult(score: Int, adjustedSeq1: String, adjustedSeq2: String) {
 
     def print(groupSize: Int): Unit = {
