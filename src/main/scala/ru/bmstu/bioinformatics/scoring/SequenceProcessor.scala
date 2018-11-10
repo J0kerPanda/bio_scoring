@@ -8,70 +8,43 @@ import scala.annotation.tailrec
 
 object SequenceProcessor {
   private val gapSymbol = '-'
+  private val limitValue = Integer.MIN_VALUE
 
   /** Class, representing leftmost column and upmost row of the matrix
+    * Corner element is present only in vertical vector
     */
-  trait MatrixCorner[A] {
-    def vertSize: Int
-    def horSize: Int
+  private case class MatrixCorner[A](protected val vert: Vector[A],
+                                     protected val hor: Vector[A]) {
 
-    def apply(i: Int)(j: Int): A
+    val vertSize: Int = vert.size
+    val horSize: Int = hor.size + 1
+
+    def apply(i: Int)(j: Int): A = if (j == 0) vert(i) else hor(j)
   }
 
-  /** Corner element is present only in vertical vector
-    */
-  private case class MatrixCornerVertBiased[A] private(protected val vert: Vector[A],
-                                                       protected val hor: Vector[A]) extends MatrixCorner[A] {
+  private object MatrixCorner {
 
-    override val vertSize: Int = vert.size
-    override val horSize: Int = hor.size + 1
-
-    override def apply(i: Int)(j: Int): A = if (j == 0) vert(i) else hor(j)
-  }
-
-  private object MatrixCornerVertBiased {
-
-    def apply[A](fillRow: A, fillCol: A, rows: Int, cols: Int): MatrixCornerVertBiased[A] =
-      MatrixCornerVertBiased(
-        vert = Vector.fill(rows)(fillRow),
-        hor = Vector.fill(cols - 1)(fillCol)
+    def apply[A](fill: A, rows: Int, cols: Int): MatrixCorner[A] =
+      MatrixCorner(
+        vert = Vector.fill(rows)(fill),
+        hor = Vector.fill(cols - 1)(fill)
       )
 
-    def apply[A](fillRow: Int => A, fillCol: Int => A, rows: Int, cols: Int): MatrixCornerVertBiased[A] =
-      MatrixCornerVertBiased(
+    def apply[A](fillRow: Int => A, fillCol: Int => A, rows: Int, cols: Int): MatrixCorner[A] =
+      MatrixCorner(
         vert = (0 until rows).map(fillRow).toVector,
+        hor = (1 until cols).map(fillCol).toVector
+      )
+
+    def applyHorizontalBias[A](fillRow: Int => A, fillCol: Int => A, rows: Int, cols: Int): MatrixCorner[A] =
+      MatrixCorner(
+        vert = (0 until rows).map(fillRow).toVector.updated(0, fillCol(0)),
         hor = (1 until cols).map(fillCol).toVector
       )
   }
 
-  /** Corner element is present only in horizontal vector
-    */
-  private case class MatrixCornerHorBiased[A] private(protected val vert: Vector[A],
-                                                      protected val hor: Vector[A]) extends MatrixCorner[A] {
-
-    override val vertSize: Int = vert.size
-    override val horSize: Int = hor.size + 1
-
-    override def apply(i: Int)(j: Int): A = if (i == 0) hor(j) else vert(i)
-  }
-
-  private object MatrixCornerHorBiased {
-
-    def apply[A](fillRow: A, fillCol: A, rows: Int, cols: Int): MatrixCornerVertBiased[A] =
-      MatrixCornerVertBiased(
-        vert = Vector.fill(rows - 1)(fillRow),
-        hor = Vector.fill(cols)(fillCol)
-      )
-
-    def apply[A](fillRow: Int => A, fillCol: Int => A, rows: Int, cols: Int): MatrixCornerVertBiased[A] =
-      MatrixCornerVertBiased(
-        vert = (1 until rows).map(fillRow).toVector,
-        hor = (0 until cols).map(fillCol).toVector
-      )
-  }
-
   private type PathPoint = (Int, Int)
-  private type ScorePathCorner = MatrixCornerVertBiased[(Int, List[PathPoint])]
+  private type ScorePathCorner = MatrixCorner[(Int, List[PathPoint])]
 
   /** Representation of intermediate step of score computation process
     * @param matching - corner of matrix responsible for matching
@@ -100,7 +73,7 @@ object SequenceProcessor {
 
 class SequenceProcessor(gapPenalty: Int,
                         weightMatrix: KeyMatrix,
-                        continuousGapPenalty: Either[None.type, Int] = Left(None),
+                        continuousGapPenalty: Int = 0,
                         considerStartGaps: Boolean = false,
                         considerEndGaps: Boolean = false) {
 
@@ -115,16 +88,14 @@ class SequenceProcessor(gapPenalty: Int,
     val cols = s2.length
 
     val initialTriplet = ProcessorTriplet(
-      matching = MatrixCornerVertBiased(Integer.MAX_VALUE, Integer.MAX_VALUE, rows, cols),
-      gapS1 = continuousGapPenalty
-        .map(cgp => MatrixCornerVertBiased(i => gapPenalty + cgp * (i - 1), _ => Integer.MAX_VALUE, rows, cols))
-        .getOrElse(MatrixCornerVertBiased(gapPenalty, Integer.MAX_VALUE, rows, cols)),
-      gapS2 = continuousGapPenalty
-        .map(cgp => MatrixCornerHorBiased(_ => Integer.MAX_VALUE, j => gapPenalty + cgp * (j - 1),  rows, cols))
-        .getOrElse(MatrixCornerHorBiased(Integer.MAX_VALUE, gapPenalty, rows, cols)),
+      matching = MatrixCorner(limitValue, rows, cols),
+      gapS1 =
+        MatrixCorner(i => gapPenalty + continuousGapPenalty * (i - 1), _ => limitValue, rows, cols),
+      gapS2 =
+        MatrixCorner.applyHorizontalBias(_ => limitValue, j => gapPenalty + continuousGapPenalty * (j - 1),  rows, cols)
     )
 
-    val acc = MatrixCornerVertBiased((0, List.empty[PathPoint]), (0, List.empty[PathPoint]), rows, cols)
+    val acc = MatrixCorner((0, List.empty[PathPoint]), rows, cols)
 
     val (score, path) = computeScorePath(initialTriplet, acc, s1, s2)
     val (adj1, adj2) = adjustSequences(s1, s2, path)
@@ -139,19 +110,41 @@ class SequenceProcessor(gapPenalty: Int,
                                seq2: String): (Int, List[PathPoint]) = {
     val (newTriplet, newAcc) = computeStep(currentTriplet, acc, seq1, seq2)
 
-    if ((acc.vert.size == 1) && (acc.hor.size == 1)) {
-      newAcc.vert(0)
+    if ((acc.vertSize == 1) && (acc.horSize == 1)) {
+      newAcc(0)(0)
     } else {
       computeScorePath(newTriplet, newAcc, seq1, seq2)
     }
   }
 
-  private def computeStep(currentTriplet: ProcessorTriplet,
+  private def computeStep(prevTriplet: ProcessorTriplet,
                           acc: ScorePathCorner,
                           seq1: String,
                           seq2: String): (ProcessorTriplet, ScorePathCorner) = {
 
-    val builderMatching = Array.
+    val s1Char = seq1(seq1.length - acc.vertSize)
+    val s2Char = seq2(seq2.length - acc.horSize)
+
+    //process each row
+    val baseVertical = Array.fill(math.max(1, acc.vertSize - 1))(limitValue)
+    //Matching vertical, sequence 1 vertical gaps, sequence 2 vertical gaps, score path vertical
+    //s2gv nee
+    val (mv, s1gv, s2gv, spv) = (baseVertical.clone(), baseVertical.clone(), baseVertical.clone(), baseVertical.clone())
+
+    def compute
+
+    for {
+      i <- 1 to acc.vertSize
+    } {
+      val prevScore = acc(i)(0)
+      val mScore = acc(i - 1)(0) ._1 + weightMatrix((s1Char, s2Char))
+      val gapS1Score = acc(i - 1)(0) + if (prevTriplet.gapS1(i - 1)(0) != limitValue) continuousGapPenalty else gapPenalty
+    }
+
+    //process each column
+
+
+    (???, ???)
   }
 
   // Path is reversed
